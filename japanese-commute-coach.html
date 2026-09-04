@@ -269,6 +269,7 @@
     font-size:16px;font-weight:700;cursor:pointer;
   }
   .drive-progress{font-size:12px;color:var(--muted);margin:0;}
+  .drive-romaji{font-size:32px;font-weight:800;color:var(--gold);margin:4px 0 0;line-height:1.25;}
   @media (prefers-reduced-motion:reduce){.drive-status.pulsing{animation:none;}}
 
   /* ---- difficulty toggle ---- */
@@ -996,6 +997,10 @@ function renderDriveMode(){
       '<p class="drive-cat">'+cat+'</p>'+
       (drivePieces.length > 1
         ? '<p class="drive-progress">'+(drivePieceIndex+1)+' / '+drivePieces.length+'</p>'
+        : ''
+      )+
+      (difficulty !== "expert" && driveState !== "idle" && drivePieces[drivePieceIndex]
+        ? '<p class="drive-romaji">'+drivePieces[drivePieceIndex].romaji+'</p>'
         : ''
       )+
       (driveState === "feedback" && driveFeedback
