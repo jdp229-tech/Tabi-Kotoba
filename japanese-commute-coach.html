@@ -152,7 +152,7 @@
 
   .reveal-wrap{margin-top:16px;padding-top:16px;border-top:1px solid var(--line);}
   .jp-answer{font-size:22px;font-weight:700;margin:0 0 2px;}
-  .romaji{font-size:13px;color:var(--muted);margin:0 0 12px;}
+  .romaji{font-size:26px;font-weight:800;color:var(--gold);margin:0 0 12px;}
 
   .stub{
     position:absolute;
@@ -258,12 +258,27 @@
   .drive-stamp-big.correct{border:3px solid var(--stamp);color:var(--stamp);}
   .drive-stamp-big.close{border:3px solid var(--gold);color:var(--gold);}
   .drive-stamp-big.retry{border:3px solid var(--muted);color:var(--muted);}
+  .drive-next{
+    margin-top:auto;width:100%;background:transparent;color:var(--ink);
+    border:1px solid var(--line);border-radius:4px;padding:16px;
+    font-size:15px;font-weight:700;cursor:pointer;
+  }
   .drive-exit{
-    margin-top:auto;width:100%;background:transparent;color:var(--stamp);
+    margin-top:10px;width:100%;background:transparent;color:var(--stamp);
     border:1px solid var(--stamp);border-radius:4px;padding:20px;
     font-size:16px;font-weight:700;cursor:pointer;
   }
+  .drive-progress{font-size:12px;color:var(--muted);margin:0;}
   @media (prefers-reduced-motion:reduce){.drive-status.pulsing{animation:none;}}
+
+  /* ---- difficulty toggle ---- */
+  .difficulty-toggle{display:flex;gap:8px;margin-top:12px;}
+  .difficulty-toggle button{
+    flex:1;padding:8px;border-radius:3px;
+    background:transparent;border:1px solid var(--line);color:var(--muted);
+    font-size:13px;cursor:pointer;
+  }
+  .difficulty-toggle button.active{background:var(--panel-raised);color:var(--ink);border-color:var(--ink);}
 
   /* ---- kana view ---- */
   .kana-toggle{display:flex;gap:8px;margin-bottom:16px;}
@@ -327,25 +342,41 @@ const CATS = { greet:"Greetings", transit:"Transit", food:"Food", dir:"Direction
 
 const PHRASES = [
   {id:"p1", cat:"greet", en:"Hello / good afternoon", jp:"こんにちは", romaji:"konnichiwa", accept:["konnichiwa","konnichiha"]},
-  {id:"p2", cat:"greet", en:"Good morning", jp:"おはようございます", romaji:"ohayou gozaimasu", accept:["ohayou gozaimasu","ohayo gozaimasu","ohayougozaimasu"]},
-  {id:"p3", cat:"greet", en:"Thank you very much", jp:"ありがとうございます", romaji:"arigatou gozaimasu", accept:["arigatou gozaimasu","arigato gozaimasu"]},
+  {id:"p2", cat:"greet", en:"Good morning", jp:"おはようございます", romaji:"ohayou gozaimasu", accept:["ohayou gozaimasu","ohayo gozaimasu","ohayougozaimasu"],
+    chunks:[{jp:"おはよう",romaji:"ohayou"},{jp:"ございます",romaji:"gozaimasu"}]},
+  {id:"p3", cat:"greet", en:"Thank you very much", jp:"ありがとうございます", romaji:"arigatou gozaimasu", accept:["arigatou gozaimasu","arigato gozaimasu"],
+    chunks:[{jp:"ありがとう",romaji:"arigatou"},{jp:"ございます",romaji:"gozaimasu"}]},
   {id:"p4", cat:"greet", en:"Excuse me / I'm sorry", jp:"すみません", romaji:"sumimasen", accept:["sumimasen"]},
-  {id:"p5", cat:"greet", en:"Nice to meet you", jp:"よろしくお願いします", romaji:"yoroshiku onegaishimasu", accept:["yoroshiku onegaishimasu"]},
-  {id:"p6", cat:"transit", en:"Where is the station?", jp:"駅はどこですか", romaji:"eki wa doko desu ka", accept:["eki wa doko desu ka"]},
-  {id:"p7", cat:"transit", en:"Does this train go to Tokyo?", jp:"この電車は東京に行きますか", romaji:"kono densha wa toukyou ni ikimasu ka", accept:["kono densha wa toukyou ni ikimasu ka","kono densha wa tokyo ni ikimasu ka"]},
-  {id:"p8", cat:"transit", en:"One ticket, please", jp:"切符を一枚ください", romaji:"kippu wo ichimai kudasai", accept:["kippu wo ichimai kudasai","kippu o ichimai kudasai"]},
-  {id:"p9", cat:"transit", en:"What time does it leave?", jp:"何時に出発しますか", romaji:"nanji ni shuppatsu shimasu ka", accept:["nanji ni shuppatsu shimasu ka"]},
-  {id:"p10", cat:"food", en:"I'll have this, please", jp:"これをください", romaji:"kore wo kudasai", accept:["kore wo kudasai","kore o kudasai"]},
-  {id:"p11", cat:"food", en:"Delicious", jp:"おいしいです", romaji:"oishii desu", accept:["oishii desu","oishi desu"]},
-  {id:"p12", cat:"food", en:"Check, please", jp:"お会計お願いします", romaji:"okaikei onegaishimasu", accept:["okaikei onegaishimasu","o-kaikei onegaishimasu"]},
-  {id:"p13", cat:"food", en:"Do you have an English menu?", jp:"英語のメニューはありますか", romaji:"eigo no menyuu wa arimasu ka", accept:["eigo no menyuu wa arimasu ka","eigo no menyu wa arimasu ka"]},
-  {id:"p14", cat:"dir", en:"Where is the bathroom?", jp:"トイレはどこですか", romaji:"toire wa doko desu ka", accept:["toire wa doko desu ka"]},
+  {id:"p5", cat:"greet", en:"Nice to meet you", jp:"よろしくお願いします", romaji:"yoroshiku onegaishimasu", accept:["yoroshiku onegaishimasu"],
+    chunks:[{jp:"よろしく",romaji:"yoroshiku"},{jp:"お願いします",romaji:"onegaishimasu"}]},
+  {id:"p6", cat:"transit", en:"Where is the station?", jp:"駅はどこですか", romaji:"eki wa doko desu ka", accept:["eki wa doko desu ka"],
+    chunks:[{jp:"駅は",romaji:"eki wa"},{jp:"どこ",romaji:"doko"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+  {id:"p7", cat:"transit", en:"Does this train go to Tokyo?", jp:"この電車は東京に行きますか", romaji:"kono densha wa toukyou ni ikimasu ka", accept:["kono densha wa toukyou ni ikimasu ka","kono densha wa tokyo ni ikimasu ka"],
+    chunks:[{jp:"この電車は",romaji:"kono densha wa"},{jp:"東京に",romaji:"toukyou ni"},{jp:"行きますか",romaji:"ikimasu ka"}]},
+  {id:"p8", cat:"transit", en:"One ticket, please", jp:"切符を一枚ください", romaji:"kippu wo ichimai kudasai", accept:["kippu wo ichimai kudasai","kippu o ichimai kudasai"],
+    chunks:[{jp:"切符を",romaji:"kippu wo"},{jp:"一枚",romaji:"ichimai"},{jp:"ください",romaji:"kudasai"}]},
+  {id:"p9", cat:"transit", en:"What time does it leave?", jp:"何時に出発しますか", romaji:"nanji ni shuppatsu shimasu ka", accept:["nanji ni shuppatsu shimasu ka"],
+    chunks:[{jp:"何時に",romaji:"nanji ni"},{jp:"出発",romaji:"shuppatsu"},{jp:"しますか",romaji:"shimasu ka"}]},
+  {id:"p10", cat:"food", en:"I'll have this, please", jp:"これをください", romaji:"kore wo kudasai", accept:["kore wo kudasai","kore o kudasai"],
+    chunks:[{jp:"これを",romaji:"kore wo"},{jp:"ください",romaji:"kudasai"}]},
+  {id:"p11", cat:"food", en:"Delicious", jp:"おいしいです", romaji:"oishii desu", accept:["oishii desu","oishi desu"],
+    chunks:[{jp:"おいしい",romaji:"oishii"},{jp:"です",romaji:"desu"}]},
+  {id:"p12", cat:"food", en:"Check, please", jp:"お会計お願いします", romaji:"okaikei onegaishimasu", accept:["okaikei onegaishimasu","o-kaikei onegaishimasu"],
+    chunks:[{jp:"お会計",romaji:"okaikei"},{jp:"お願いします",romaji:"onegaishimasu"}]},
+  {id:"p13", cat:"food", en:"Do you have an English menu?", jp:"英語のメニューはありますか", romaji:"eigo no menyuu wa arimasu ka", accept:["eigo no menyuu wa arimasu ka","eigo no menyu wa arimasu ka"],
+    chunks:[{jp:"英語の",romaji:"eigo no"},{jp:"メニューは",romaji:"menyuu wa"},{jp:"ありますか",romaji:"arimasu ka"}]},
+  {id:"p14", cat:"dir", en:"Where is the bathroom?", jp:"トイレはどこですか", romaji:"toire wa doko desu ka", accept:["toire wa doko desu ka"],
+    chunks:[{jp:"トイレは",romaji:"toire wa"},{jp:"どこ",romaji:"doko"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
   {id:"p15", cat:"dir", en:"I don't understand", jp:"わかりません", romaji:"wakarimasen", accept:["wakarimasen"]},
-  {id:"p16", cat:"dir", en:"Please speak slowly", jp:"ゆっくり話してください", romaji:"yukkuri hanashite kudasai", accept:["yukkuri hanashite kudasai"]},
-  {id:"p17", cat:"dir", en:"How much is this?", jp:"これはいくらですか", romaji:"kore wa ikura desu ka", accept:["kore wa ikura desu ka"]},
+  {id:"p16", cat:"dir", en:"Please speak slowly", jp:"ゆっくり話してください", romaji:"yukkuri hanashite kudasai", accept:["yukkuri hanashite kudasai"],
+    chunks:[{jp:"ゆっくり",romaji:"yukkuri"},{jp:"話して",romaji:"hanashite"},{jp:"ください",romaji:"kudasai"}]},
+  {id:"p17", cat:"dir", en:"How much is this?", jp:"これはいくらですか", romaji:"kore wa ikura desu ka", accept:["kore wa ikura desu ka"],
+    chunks:[{jp:"これは",romaji:"kore wa"},{jp:"いくら",romaji:"ikura"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
   {id:"p18", cat:"emg", en:"Help!", jp:"助けて", romaji:"tasukete", accept:["tasukete"]},
-  {id:"p19", cat:"emg", en:"Where is the hospital?", jp:"病院はどこですか", romaji:"byouin wa doko desu ka", accept:["byouin wa doko desu ka","byoin wa doko desu ka"]},
-  {id:"p20", cat:"emg", en:"Please call the police", jp:"警察を呼んでください", romaji:"keisatsu wo yonde kudasai", accept:["keisatsu wo yonde kudasai","keisatsu o yonde kudasai"]}
+  {id:"p19", cat:"emg", en:"Where is the hospital?", jp:"病院はどこですか", romaji:"byouin wa doko desu ka", accept:["byouin wa doko desu ka","byoin wa doko desu ka"],
+    chunks:[{jp:"病院は",romaji:"byouin wa"},{jp:"どこ",romaji:"doko"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+  {id:"p20", cat:"emg", en:"Please call the police", jp:"警察を呼んでください", romaji:"keisatsu wo yonde kudasai", accept:["keisatsu wo yonde kudasai","keisatsu o yonde kudasai"],
+    chunks:[{jp:"警察を",romaji:"keisatsu wo"},{jp:"呼んで",romaji:"yonde"},{jp:"ください",romaji:"kudasai"}]}
 ];
 
 const GOJUON = [
@@ -365,6 +396,26 @@ function buildKana(script){
   return GOJUON.map(function(row){
     return {id:"h_"+row[0], romaji:row[0], glyph: script==="hira" ? row[1] : row[2]};
   });
+}
+
+function buildMediumChunks(chunks){
+  if(chunks.length < 4) return chunks; // too few to usefully regroup
+  const medium = [];
+  for(let i=0;i<chunks.length;i+=2){
+    medium.push(i+1<chunks.length
+      ? {jp:chunks[i].jp+chunks[i+1].jp, romaji:chunks[i].romaji+" "+chunks[i+1].romaji}
+      : chunks[i]);
+  }
+  return medium;
+}
+function buildDrivePieceSequence(phrase, level){
+  const whole = {jp:phrase.jp, romaji:phrase.romaji};
+  const chunks = phrase.chunks;
+  if(!chunks || chunks.length < 2 || level === "expert") return [whole];
+  const medium = buildMediumChunks(chunks);
+  const sameAsSmall = medium.length === chunks.length;
+  if(level === "amateur") return (sameAsSmall ? chunks : medium).concat([whole]);
+  return sameAsSmall ? chunks.concat([whole]) : chunks.concat(medium, [whole]); // beginner
 }
 
 /* ---------------- utility: grading ---------------- */
@@ -525,6 +576,7 @@ let kanaScript = "hira";
 let currentKana = null;
 let kanaFlipped = false;
 let infoOpen = false;
+let difficulty = "beginner"; // "beginner" | "amateur" | "expert" — Drive Mode only
 
 /* ---------------- drive mode state ---------------- */
 let mode = "review"; // "review" | "drive"
@@ -534,6 +586,8 @@ let driveCurrentPhrase = null;
 let driveFeedback = null; // {kind, mark}
 let driveTurnId = 0;
 let drivePauseTimer = null;
+let drivePieces = [];
+let drivePieceIndex = 0;
 
 function ensureCurrentPhrase(){
   if(!currentPhrase){ currentPhrase = pickNext(PHRASES); }
@@ -544,6 +598,20 @@ function ensureCurrentKana(){
 
 /* ---------------- render ---------------- */
 const app = document.getElementById("app");
+
+function renderDifficultyToggle(){
+  const levels = [["beginner","Beginner"],["amateur","Amateur"],["expert","Expert"]];
+  return '<div class="difficulty-toggle">'+
+    levels.map(function(lv){
+      return '<button data-level="'+lv[0]+'" class="'+(difficulty===lv[0]?"active":"")+'">'+lv[1]+'</button>';
+    }).join("")+
+  '</div>';
+}
+function wireDifficultyToggle(){
+  Array.prototype.forEach.call(document.querySelectorAll(".difficulty-toggle button"), function(b){
+    b.onclick = function(){ difficulty = b.getAttribute("data-level"); render(); };
+  });
+}
 
 function render(){
   if(mode === "drive"){ renderDriveMode(); return; }
@@ -564,6 +632,7 @@ function render(){
       '<div class="tab'+(view==="phrases"?" active":"")+'" data-view="phrases">Phrases</div>'+
       '<div class="tab'+(view==="kana"?" active":"")+'" data-view="kana">Kana</div>'+
     '</div>'+
+    renderDifficultyToggle()+
     (driveReady
       ? '<button class="drive-cta" id="startDriveBtn">Start Drive Mode</button>'
       : '<p class="mic-hint">Drive mode needs speech features this browser doesn\u2019t support here.</p>'
@@ -588,6 +657,7 @@ function render(){
     render();
     startDriveTurn();
   };
+  wireDifficultyToggle();
   Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(t){
     t.onclick = function(){
       view = t.getAttribute("data-view");
@@ -757,25 +827,37 @@ function renderKanaView(){
 /* ---------------- drive mode ---------------- */
 const DRIVE_CUE = { correct: "Correct.", close: "Close.", retry: "Try again." };
 
+function isLastDrivePiece(){
+  return drivePieceIndex === drivePieces.length - 1;
+}
+
 function startDriveTurn(){
   driveTurnId++;
   const myTurn = driveTurnId;
   driveCurrentPhrase = pickNext(PHRASES);
+  drivePieces = buildDrivePieceSequence(driveCurrentPhrase, difficulty);
+  drivePieceIndex = 0;
   driveFeedback = null;
   driveState = "prompt-en"; render();
   speak(driveCurrentPhrase.en, "en-US", function(){
     if(!driveActive || myTurn !== driveTurnId) return;
-    driveState = "prompt-jp"; render();
-    speak(driveCurrentPhrase.jp, "ja-JP", function(){
-      if(!driveActive || myTurn !== driveTurnId) return;
-      startDriveListening(driveCurrentPhrase, myTurn);
-    });
+    playDrivePiece(myTurn);
   });
 }
 
-function startDriveListening(phrase, myTurn){
+function playDrivePiece(myTurn){
   if(!driveActive || myTurn !== driveTurnId) return;
-  if(!recognition){ scheduleDrivePause(myTurn); return; }
+  const piece = drivePieces[drivePieceIndex];
+  driveState = "prompt-jp"; render();
+  speak(piece.jp, "ja-JP", function(){
+    if(!driveActive || myTurn !== driveTurnId) return;
+    startDriveListening(piece, myTurn);
+  });
+}
+
+function startDriveListening(piece, myTurn){
+  if(!driveActive || myTurn !== driveTurnId) return;
+  if(!recognition){ advancePastListening(myTurn); return; }
   driveState = "listening"; render();
   let resolved = false;
   function clearHandlers(){
@@ -785,7 +867,7 @@ function startDriveListening(phrase, myTurn){
     if(resolved || !driveActive || myTurn !== driveTurnId) return;
     resolved = true; clearHandlers();
     const transcript = e.results[0][0].transcript;
-    applyDriveOutcome(gradeSpoken(phrase, transcript), myTurn);
+    applyDrivePieceOutcome(gradeSpoken(piece, transcript), myTurn);
   };
   recognition.onerror = function(e){
     if(resolved || !driveActive || myTurn !== driveTurnId) return;
@@ -796,7 +878,7 @@ function startDriveListening(phrase, myTurn){
     }
     speak("Didn’t catch that.", "en-US", function(){
       if(!driveActive || myTurn !== driveTurnId) return;
-      scheduleDrivePause(myTurn);
+      advancePastListening(myTurn);
     });
   };
   recognition.onend = function(){
@@ -804,15 +886,41 @@ function startDriveListening(phrase, myTurn){
     resolved = true; clearHandlers();
     speak("Didn’t catch that.", "en-US", function(){
       if(!driveActive || myTurn !== driveTurnId) return;
-      scheduleDrivePause(myTurn);
+      advancePastListening(myTurn);
     });
   };
   try{
     recognition.start();
   }catch(e){
     resolved = true; clearHandlers();
-    scheduleDrivePause(myTurn);
+    advancePastListening(myTurn);
   }
+}
+
+function advancePastListening(myTurn){
+  if(isLastDrivePiece()){ scheduleDrivePause(myTurn); return; }
+  drivePieceIndex++;
+  playDrivePiece(myTurn);
+}
+
+function applyDrivePieceOutcome(outcome, myTurn){
+  if(!driveActive || myTurn !== driveTurnId) return;
+  if(isLastDrivePiece()){ applyDriveOutcome(outcome, myTurn); return; }
+  const piece = drivePieces[drivePieceIndex];
+  const mark = outcome==="correct" ? "✓" : (outcome==="close" ? "~" : "!");
+  driveFeedback = {kind:outcome, mark:mark};
+  driveState = "feedback"; render();
+  speak(DRIVE_CUE[outcome], "en-US", function(){
+    if(!driveActive || myTurn !== driveTurnId) return;
+    if(outcome === "correct"){
+      drivePieceIndex++; driveFeedback = null; playDrivePiece(myTurn);
+      return;
+    }
+    speak(piece.jp, "ja-JP", function(){
+      if(!driveActive || myTurn !== driveTurnId) return;
+      drivePieceIndex++; driveFeedback = null; playDrivePiece(myTurn);
+    });
+  });
 }
 
 function applyDriveOutcome(outcome, myTurn){
@@ -841,6 +949,19 @@ function scheduleDrivePause(myTurn){
   }, 1200);
 }
 
+function advanceDriveManually(){
+  driveTurnId++;
+  if(drivePauseTimer){ clearTimeout(drivePauseTimer); drivePauseTimer = null; }
+  if("speechSynthesis" in window) window.speechSynthesis.cancel();
+  if(recognition){
+    try{
+      recognition.onresult = null; recognition.onerror = null; recognition.onend = null;
+      recognition.abort();
+    }catch(e){}
+  }
+  startDriveTurn();
+}
+
 function exitDriveMode(){
   driveActive = false;
   driveTurnId++;
@@ -853,6 +974,7 @@ function exitDriveMode(){
     }catch(e){}
   }
   mode = "review"; driveState = "idle"; driveFeedback = null; driveCurrentPhrase = null;
+  drivePieces = []; drivePieceIndex = 0;
   render();
 }
 
@@ -870,13 +992,21 @@ function renderDriveMode(){
   }[driveState];
   app.innerHTML =
     '<div class="drive-shell">'+
+      renderDifficultyToggle()+
       '<p class="drive-cat">'+cat+'</p>'+
+      (drivePieces.length > 1
+        ? '<p class="drive-progress">'+(drivePieceIndex+1)+' / '+drivePieces.length+'</p>'
+        : ''
+      )+
       (driveState === "feedback" && driveFeedback
         ? '<div class="drive-stamp-big '+driveFeedback.kind+'">'+driveFeedback.mark+'</div>'
         : '<p class="drive-status'+(driveState==="listening"?" pulsing":"")+'">'+statusLabel+'</p>'
       )+
+      '<button class="drive-next" id="nextDriveBtn">Next phrase</button>'+
       '<button class="drive-exit" id="exitDriveBtn">End Drive Mode</button>'+
     '</div>';
+  wireDifficultyToggle();
+  document.getElementById("nextDriveBtn").onclick = advanceDriveManually;
   document.getElementById("exitDriveBtn").onclick = exitDriveMode;
 }
 
