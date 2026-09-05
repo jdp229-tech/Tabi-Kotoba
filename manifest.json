@@ -1,0 +1,15 @@
+{
+  "name": "Tabi Kotoba",
+  "short_name": "旅ことば",
+  "description": "Audio-first Japanese phrase practice for the commute",
+  "start_url": "./japanese-commute-coach.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#171B2E",
+  "theme_color": "#171B2E",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#171B2E">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Tabi Kotoba — practice for the drive</title>
 <style>
   :root{
@@ -345,7 +350,7 @@
 "use strict";
 
 /* ---------------- DATA ---------------- */
-const CATS = { greet:"Greetings", transit:"Transit", food:"Food", dir:"Directions", emg:"Emergency" };
+const CATS = { greet:"Greetings", transit:"Transit", food:"Food", dir:"Directions", emg:"Emergency", shop:"Shopping", hotel:"Accommodation", talk:"Small Talk" };
 
 const PHRASES = [
   {id:"p1", cat:"greet", en:"Hello / good afternoon", jp:"こんにちは", romaji:"konnichiwa", accept:["konnichiwa","konnichiha"]},
@@ -377,13 +382,97 @@ const PHRASES = [
   {id:"p15", cat:"dir", en:"I don't understand", jp:"わかりません", romaji:"wakarimasen", accept:["wakarimasen"]},
   {id:"p16", cat:"dir", en:"Please speak slowly", jp:"ゆっくり話してください", romaji:"yukkuri hanashite kudasai", accept:["yukkuri hanashite kudasai"],
     chunks:[{jp:"ゆっくり",romaji:"yukkuri"},{jp:"話して",romaji:"hanashite"},{jp:"ください",romaji:"kudasai"}]},
-  {id:"p17", cat:"dir", en:"How much is this?", jp:"これはいくらですか", romaji:"kore wa ikura desu ka", accept:["kore wa ikura desu ka"],
+  {id:"p17", cat:"shop", en:"How much is this?", jp:"これはいくらですか", romaji:"kore wa ikura desu ka", accept:["kore wa ikura desu ka"],
     chunks:[{jp:"これは",romaji:"kore wa"},{jp:"いくら",romaji:"ikura"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
   {id:"p18", cat:"emg", en:"Help!", jp:"助けて", romaji:"tasukete", accept:["tasukete"]},
   {id:"p19", cat:"emg", en:"Where is the hospital?", jp:"病院はどこですか", romaji:"byouin wa doko desu ka", accept:["byouin wa doko desu ka","byoin wa doko desu ka"],
     chunks:[{jp:"病院は",romaji:"byouin wa"},{jp:"どこ",romaji:"doko"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
   {id:"p20", cat:"emg", en:"Please call the police", jp:"警察を呼んでください", romaji:"keisatsu wo yonde kudasai", accept:["keisatsu wo yonde kudasai","keisatsu o yonde kudasai"],
-    chunks:[{jp:"警察を",romaji:"keisatsu wo"},{jp:"呼んで",romaji:"yonde"},{jp:"ください",romaji:"kudasai"}]}
+    chunks:[{jp:"警察を",romaji:"keisatsu wo"},{jp:"呼んで",romaji:"yonde"},{jp:"ください",romaji:"kudasai"}]},
+
+  {id:"p21", cat:"greet", en:"Good evening", jp:"こんばんは", romaji:"konbanwa", accept:["konbanwa"]},
+  {id:"p22", cat:"greet", en:"Goodbye", jp:"さようなら", romaji:"sayounara", accept:["sayounara","sayonara"]},
+  {id:"p23", cat:"greet", en:"See you later", jp:"またね", romaji:"mata ne", accept:["mata ne"],
+    chunks:[{jp:"また",romaji:"mata"},{jp:"ね",romaji:"ne"}]},
+  {id:"p24", cat:"greet", en:"How are you?", jp:"お元気ですか", romaji:"ogenki desu ka", accept:["ogenki desu ka"],
+    chunks:[{jp:"お元気",romaji:"ogenki"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+
+  {id:"p25", cat:"transit", en:"Which platform is it?", jp:"何番線ですか", romaji:"nanbansen desu ka", accept:["nanbansen desu ka"],
+    chunks:[{jp:"何番線",romaji:"nanbansen"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+  {id:"p26", cat:"transit", en:"Is this seat taken?", jp:"この席は空いていますか", romaji:"kono seki wa aiteimasu ka", accept:["kono seki wa aiteimasu ka"],
+    chunks:[{jp:"この席は",romaji:"kono seki wa"},{jp:"空いています",romaji:"aiteimasu"},{jp:"か",romaji:"ka"}]},
+  {id:"p27", cat:"transit", en:"How long does it take?", jp:"どのくらいかかりますか", romaji:"dono kurai kakarimasu ka", accept:["dono kurai kakarimasu ka"],
+    chunks:[{jp:"どのくらい",romaji:"dono kurai"},{jp:"かかります",romaji:"kakarimasu"},{jp:"か",romaji:"ka"}]},
+  {id:"p28", cat:"transit", en:"Please take me to this address", jp:"この住所までお願いします", romaji:"kono juusho made onegaishimasu", accept:["kono juusho made onegaishimasu"],
+    chunks:[{jp:"この住所まで",romaji:"kono juusho made"},{jp:"お願いします",romaji:"onegaishimasu"}]},
+  {id:"p29", cat:"transit", en:"Where's the bus to the airport?", jp:"空港行きのバスはどこですか", romaji:"kuukou yuki no basu wa doko desu ka", accept:["kuukou yuki no basu wa doko desu ka"],
+    chunks:[{jp:"空港行きのバスは",romaji:"kuukou yuki no basu wa"},{jp:"どこ",romaji:"doko"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+
+  {id:"p30", cat:"food", en:"I'm vegetarian", jp:"私はベジタリアンです", romaji:"watashi wa bejitarian desu", accept:["watashi wa bejitarian desu"],
+    chunks:[{jp:"私は",romaji:"watashi wa"},{jp:"ベジタリアン",romaji:"bejitarian"},{jp:"です",romaji:"desu"}]},
+  {id:"p31", cat:"food", en:"Not spicy, please", jp:"辛くしないでください", romaji:"karaku shinaide kudasai", accept:["karaku shinaide kudasai"],
+    chunks:[{jp:"辛くしないで",romaji:"karaku shinaide"},{jp:"ください",romaji:"kudasai"}]},
+  {id:"p32", cat:"food", en:"Table for two, please", jp:"二人ですお願いします", romaji:"futari desu onegaishimasu", accept:["futari desu onegaishimasu"],
+    chunks:[{jp:"二人です",romaji:"futari desu"},{jp:"お願いします",romaji:"onegaishimasu"}]},
+  {id:"p33", cat:"food", en:"Water, please", jp:"お水をください", romaji:"omizu wo kudasai", accept:["omizu wo kudasai","omizu o kudasai"],
+    chunks:[{jp:"お水を",romaji:"omizu wo"},{jp:"ください",romaji:"kudasai"}]},
+  {id:"p34", cat:"food", en:"What do you recommend?", jp:"おすすめは何ですか", romaji:"osusume wa nan desu ka", accept:["osusume wa nan desu ka"],
+    chunks:[{jp:"おすすめは",romaji:"osusume wa"},{jp:"何",romaji:"nan"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+
+  {id:"p35", cat:"dir", en:"Turn left", jp:"左に曲がってください", romaji:"hidari ni magatte kudasai", accept:["hidari ni magatte kudasai"],
+    chunks:[{jp:"左に",romaji:"hidari ni"},{jp:"曲がって",romaji:"magatte"},{jp:"ください",romaji:"kudasai"}]},
+  {id:"p36", cat:"dir", en:"Turn right", jp:"右に曲がってください", romaji:"migi ni magatte kudasai", accept:["migi ni magatte kudasai"],
+    chunks:[{jp:"右に",romaji:"migi ni"},{jp:"曲がって",romaji:"magatte"},{jp:"ください",romaji:"kudasai"}]},
+  {id:"p37", cat:"dir", en:"Go straight", jp:"まっすぐ行ってください", romaji:"massugu itte kudasai", accept:["massugu itte kudasai"],
+    chunks:[{jp:"まっすぐ",romaji:"massugu"},{jp:"行って",romaji:"itte"},{jp:"ください",romaji:"kudasai"}]},
+  {id:"p38", cat:"dir", en:"Is it near here?", jp:"ここから近いですか", romaji:"koko kara chikai desu ka", accept:["koko kara chikai desu ka"],
+    chunks:[{jp:"ここから",romaji:"koko kara"},{jp:"近い",romaji:"chikai"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+
+  {id:"p39", cat:"emg", en:"I need a doctor", jp:"医者が必要です", romaji:"isha ga hitsuyou desu", accept:["isha ga hitsuyou desu"],
+    chunks:[{jp:"医者が",romaji:"isha ga"},{jp:"必要です",romaji:"hitsuyou desu"}]},
+  {id:"p40", cat:"emg", en:"I lost my passport", jp:"パスポートをなくしました", romaji:"pasupooto wo nakushimashita", accept:["pasupooto wo nakushimashita","pasupooto o nakushimashita"],
+    chunks:[{jp:"パスポートを",romaji:"pasupooto wo"},{jp:"なくしました",romaji:"nakushimashita"}]},
+  {id:"p41", cat:"emg", en:"I don't feel well", jp:"気分が悪いです", romaji:"kibun ga warui desu", accept:["kibun ga warui desu"],
+    chunks:[{jp:"気分が",romaji:"kibun ga"},{jp:"悪いです",romaji:"warui desu"}]},
+
+  {id:"p42", cat:"shop", en:"Do you accept credit cards?", jp:"クレジットカードは使えますか", romaji:"kurejitto kaado wa tsukaemasu ka", accept:["kurejitto kaado wa tsukaemasu ka"],
+    chunks:[{jp:"クレジットカードは",romaji:"kurejitto kaado wa"},{jp:"使えます",romaji:"tsukaemasu"},{jp:"か",romaji:"ka"}]},
+  {id:"p43", cat:"shop", en:"Just looking, thank you", jp:"見ているだけです、ありがとう", romaji:"miteiru dake desu, arigatou", accept:["miteiru dake desu arigatou","miteiru dake desu"],
+    chunks:[{jp:"見ているだけです、",romaji:"miteiru dake desu,"},{jp:"ありがとう",romaji:"arigatou"}]},
+
+  {id:"p44", cat:"hotel", en:"I have a reservation", jp:"予約しています", romaji:"yoyaku shiteimasu", accept:["yoyaku shiteimasu"],
+    chunks:[{jp:"予約",romaji:"yoyaku"},{jp:"しています",romaji:"shiteimasu"}]},
+  {id:"p45", cat:"hotel", en:"What time is checkout?", jp:"チェックアウトは何時ですか", romaji:"chekkuauto wa nanji desu ka", accept:["chekkuauto wa nanji desu ka"],
+    chunks:[{jp:"チェックアウトは",romaji:"chekkuauto wa"},{jp:"何時",romaji:"nanji"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+  {id:"p46", cat:"hotel", en:"Is breakfast included?", jp:"朝食は付いていますか", romaji:"choushoku wa tsuiteimasu ka", accept:["choushoku wa tsuiteimasu ka"],
+    chunks:[{jp:"朝食は",romaji:"choushoku wa"},{jp:"付いています",romaji:"tsuiteimasu"},{jp:"か",romaji:"ka"}]},
+  {id:"p47", cat:"hotel", en:"Can I get an extra towel?", jp:"タオルをもう一枚もらえますか", romaji:"taoru wo mou ichimai moraemasu ka", accept:["taoru wo mou ichimai moraemasu ka","taoru o mou ichimai moraemasu ka"],
+    chunks:[{jp:"タオルを",romaji:"taoru wo"},{jp:"もう一枚",romaji:"mou ichimai"},{jp:"もらえます",romaji:"moraemasu"},{jp:"か",romaji:"ka"}]},
+  {id:"p48", cat:"hotel", en:"What's the wifi password?", jp:"Wi-Fiのパスワードは何ですか", romaji:"wifi no pasuwaado wa nan desu ka", accept:["wifi no pasuwaado wa nan desu ka"],
+    chunks:[{jp:"Wi-Fiのパスワードは",romaji:"wifi no pasuwaado wa"},{jp:"何",romaji:"nan"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+  {id:"p49", cat:"hotel", en:"Is there a coin laundry?", jp:"コインランドリーはありますか", romaji:"koin randorii wa arimasu ka", accept:["koin randorii wa arimasu ka"],
+    chunks:[{jp:"コインランドリーは",romaji:"koin randorii wa"},{jp:"あります",romaji:"arimasu"},{jp:"か",romaji:"ka"}]},
+  {id:"p50", cat:"hotel", en:"Can you call me a taxi?", jp:"タクシーを呼んでもらえますか", romaji:"takushii wo yonde moraemasu ka", accept:["takushii wo yonde moraemasu ka","takushii o yonde moraemasu ka"],
+    chunks:[{jp:"タクシーを",romaji:"takushii wo"},{jp:"呼んで",romaji:"yonde"},{jp:"もらえます",romaji:"moraemasu"},{jp:"か",romaji:"ka"}]},
+  {id:"p51", cat:"hotel", en:"I'd like to check in", jp:"チェックインをお願いします", romaji:"chekkuin wo onegaishimasu", accept:["chekkuin wo onegaishimasu","chekkuin o onegaishimasu"],
+    chunks:[{jp:"チェックインを",romaji:"chekkuin wo"},{jp:"お願いします",romaji:"onegaishimasu"}]},
+
+  {id:"p52", cat:"talk", en:"Where are you from?", jp:"どこから来ましたか", romaji:"doko kara kimashita ka", accept:["doko kara kimashita ka"],
+    chunks:[{jp:"どこから",romaji:"doko kara"},{jp:"来ました",romaji:"kimashita"},{jp:"か",romaji:"ka"}]},
+  {id:"p53", cat:"talk", en:"What do you do for work?", jp:"何のお仕事をしていますか", romaji:"nan no oshigoto wo shiteimasu ka", accept:["nan no oshigoto wo shiteimasu ka","nan no oshigoto o shiteimasu ka"],
+    chunks:[{jp:"何の",romaji:"nan no"},{jp:"お仕事を",romaji:"oshigoto wo"},{jp:"しています",romaji:"shiteimasu"},{jp:"か",romaji:"ka"}]},
+  {id:"p54", cat:"talk", en:"This is my first time in Japan", jp:"日本は初めてです", romaji:"nihon wa hajimete desu", accept:["nihon wa hajimete desu"],
+    chunks:[{jp:"日本は",romaji:"nihon wa"},{jp:"初めて",romaji:"hajimete"},{jp:"です",romaji:"desu"}]},
+  {id:"p55", cat:"talk", en:"Do you speak English?", jp:"英語を話せますか", romaji:"eigo wo hanasemasu ka", accept:["eigo wo hanasemasu ka","eigo o hanasemasu ka"],
+    chunks:[{jp:"英語を",romaji:"eigo wo"},{jp:"話せます",romaji:"hanasemasu"},{jp:"か",romaji:"ka"}]},
+  {id:"p56", cat:"talk", en:"It's nice weather today", jp:"今日はいい天気ですね", romaji:"kyou wa ii tenki desu ne", accept:["kyou wa ii tenki desu ne"],
+    chunks:[{jp:"今日は",romaji:"kyou wa"},{jp:"いい天気",romaji:"ii tenki"},{jp:"です",romaji:"desu"},{jp:"ね",romaji:"ne"}]},
+  {id:"p57", cat:"talk", en:"I like Japan very much", jp:"日本がとても好きです", romaji:"nihon ga totemo suki desu", accept:["nihon ga totemo suki desu"],
+    chunks:[{jp:"日本が",romaji:"nihon ga"},{jp:"とても",romaji:"totemo"},{jp:"好きです",romaji:"suki desu"}]},
+  {id:"p58", cat:"talk", en:"What's your name?", jp:"お名前は何ですか", romaji:"onamae wa nan desu ka", accept:["onamae wa nan desu ka"],
+    chunks:[{jp:"お名前は",romaji:"onamae wa"},{jp:"何",romaji:"nan"},{jp:"です",romaji:"desu"},{jp:"か",romaji:"ka"}]},
+  {id:"p59", cat:"talk", en:"I understand", jp:"わかりました", romaji:"wakarimashita", accept:["wakarimashita"]},
+  {id:"p60", cat:"talk", en:"Cheers!", jp:"乾杯", romaji:"kanpai", accept:["kanpai"]}
 ];
 
 const GOJUON = [
