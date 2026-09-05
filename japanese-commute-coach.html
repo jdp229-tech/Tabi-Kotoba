@@ -38,6 +38,10 @@
     display:flex;
     flex-direction:column;
     padding:env(safe-area-inset-top,0) 18px env(safe-area-inset-bottom,0);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 260'%3E%3Cg fill='none' stroke='%23EDEAE6' stroke-width='2' stroke-linecap='round' opacity='0.07'%3E%3Cpath d='M255,10 C220,35 195,60 170,95 C145,130 125,155 95,190 C75,215 55,235 25,255'/%3E%3Cpath d='M195,62 C210,48 225,42 240,34'/%3E%3Cpath d='M150,120 C135,133 120,138 100,146'/%3E%3Cpath d='M100,175 C82,184 70,193 55,210'/%3E%3C/g%3E%3Cg fill='%23EDEAE6' opacity='0.09'%3E%3Cg transform='translate(232,36)'%3E%3Ccircle r='4' cy='-8'/%3E%3Ccircle r='4' cx='7' cy='-3'/%3E%3Ccircle r='4' cx='4' cy='7'/%3E%3Ccircle r='4' cx='-4' cy='7'/%3E%3Ccircle r='4' cx='-7' cy='-3'/%3E%3C/g%3E%3Cg transform='translate(140,128) scale(0.85)'%3E%3Ccircle r='4' cy='-8'/%3E%3Ccircle r='4' cx='7' cy='-3'/%3E%3Ccircle r='4' cx='4' cy='7'/%3E%3Ccircle r='4' cx='-4' cy='7'/%3E%3Ccircle r='4' cx='-7' cy='-3'/%3E%3C/g%3E%3Cg transform='translate(60,205) scale(0.7)'%3E%3Ccircle r='4' cy='-8'/%3E%3Ccircle r='4' cx='7' cy='-3'/%3E%3Ccircle r='4' cx='4' cy='7'/%3E%3Ccircle r='4' cx='-4' cy='7'/%3E%3Ccircle r='4' cx='-7' cy='-3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:top right;
+    background-size:240px 240px;
   }
 
   /* ---- Header ---- */
@@ -81,6 +85,12 @@
   }
   .info-panel.open{display:block;}
   .info-panel strong{color:var(--ink);}
+  .voice-label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px;}
+  .info-panel select{
+    width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+    border-radius:3px;padding:8px;font-size:13px;font-family:inherit;
+  }
+  .voice-hint{font-size:12px;color:var(--muted);margin:6px 0 0;}
 
   /* ---- Tabs ---- */
   .tabs{
@@ -113,7 +123,7 @@
     background:var(--panel);
     border:1px solid var(--line);
     border-radius:4px;
-    padding:22px 20px 20px;
+    padding:22px 84px 20px 20px;
     overflow:hidden;
   }
   .card::after{
@@ -133,7 +143,6 @@
     font-weight:700;
     line-height:1.35;
     margin:0 0 14px;
-    padding-right:60px;
   }
   .play-row{display:flex;gap:8px;margin-bottom:6px;}
   .icon-btn{
@@ -531,6 +540,8 @@ function recordResult(id, outcome){
 }
 
 /* ---------------- speech ---------------- */
+let selectedJaVoiceURI = null; // null = auto (heuristic below)
+
 function speak(text, lang, onDone){
   if(!("speechSynthesis" in window)){ if(onDone) setTimeout(onDone, 0); return false; }
   try{
@@ -539,8 +550,14 @@ function speak(text, lang, onDone){
     u.lang = lang;
     u.rate = lang.indexOf("ja") === 0 ? 0.88 : 1;
     const voices = window.speechSynthesis.getVoices();
-    const match = voices.find(function(v){return v.lang===lang;}) ||
-                  voices.find(function(v){return v.lang.indexOf(lang.slice(0,2))===0;});
+    let match = null;
+    if(lang.indexOf("ja") === 0 && selectedJaVoiceURI){
+      match = voices.find(function(v){ return v.voiceURI === selectedJaVoiceURI; });
+    }
+    if(!match){
+      match = voices.find(function(v){return v.lang===lang;}) ||
+              voices.find(function(v){return v.lang.indexOf(lang.slice(0,2))===0;});
+    }
     if(match) u.voice = match;
     if(onDone){ u.onend = onDone; u.onerror = onDone; }
     window.speechSynthesis.speak(u);
@@ -549,7 +566,7 @@ function speak(text, lang, onDone){
 }
 if("speechSynthesis" in window){
   window.speechSynthesis.getVoices();
-  window.speechSynthesis.onvoiceschanged = function(){};
+  window.speechSynthesis.onvoiceschanged = function(){ if(state) render(); };
 }
 
 const SRClass = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -600,6 +617,22 @@ function ensureCurrentKana(){
 /* ---------------- render ---------------- */
 const app = document.getElementById("app");
 
+function renderVoicePicker(){
+  if(!("speechSynthesis" in window)) return "";
+  const jaVoices = window.speechSynthesis.getVoices().filter(function(v){ return v.lang.indexOf("ja")===0; });
+  if(!jaVoices.length) return '<p class="voice-hint">No Japanese voices found on this browser yet.</p>';
+  return '<label class="voice-label">Japanese voice</label>'+
+    '<select id="jaVoiceSelect">'+
+      '<option value="">Auto</option>'+
+      jaVoices.map(function(v){
+        const tag = v.localService ? "on-device" : "network";
+        const sel = v.voiceURI === selectedJaVoiceURI ? " selected" : "";
+        return '<option value="'+v.voiceURI+'"'+sel+'>'+v.name+' ('+tag+')</option>';
+      }).join("")+
+    '</select>'+
+    '<p class="voice-hint">“network” voices send the phrase to the browser vendor’s servers to generate audio; “on-device” voices stay fully offline.</p>';
+}
+
 function renderDifficultyToggle(){
   const levels = [["beginner","Beginner"],["amateur","Amateur"],["expert","Expert"]];
   return '<div class="difficulty-toggle">'+
@@ -624,10 +657,15 @@ function render(){
       '<button class="info-btn" id="infoBtn" aria-label="About this prototype">i</button>'+
     '</header>'+
     '<div class="info-panel'+(infoOpen?" open":"")+'" id="infoPanel">'+
-      '<strong>How this works.</strong> Japanese and English playback run fully on your device — no audio leaves it. '+
+      '<strong>How this works.</strong> '+
+      (selectedJaVoiceURI && ("speechSynthesis" in window) && window.speechSynthesis.getVoices().find(function(v){return v.voiceURI===selectedJaVoiceURI && v.localService===false;})
+        ? 'You’ve selected a network Japanese voice, so Japanese playback is sent to the browser vendor’s servers to generate audio. '
+        : 'Japanese and English playback run fully on your device by default — no audio leaves it. '
+      )+
       'Speech grading currently uses your browser\u2019s built-in recognizer as a stand-in, so accuracy varies by device. '+
       'Review mode is for focused practice at a screen; Drive mode is fully audio and hands-free for the commute itself. '+
       'The plan is to swap browser speech recognition for a proper local speech model, keeping grading fully offline either way.'+
+      renderVoicePicker()+
     '</div>'+
     '<div class="tabs">'+
       '<div class="tab'+(view==="phrases"?" active":"")+'" data-view="phrases">Phrases</div>'+
@@ -651,6 +689,11 @@ function render(){
   document.getElementById("infoBtn").onclick = function(){ infoOpen=!infoOpen; render(); };
   document.getElementById("resetBtn").onclick = function(){
     if(confirm("Clear all saved progress on this device?")) resetProgress();
+  };
+  const jaVoiceSelect = document.getElementById("jaVoiceSelect");
+  if(jaVoiceSelect) jaVoiceSelect.onchange = function(){
+    selectedJaVoiceURI = jaVoiceSelect.value || null;
+    render();
   };
   const startDriveBtn = document.getElementById("startDriveBtn");
   if(startDriveBtn) startDriveBtn.onclick = function(){
