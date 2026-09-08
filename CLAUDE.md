@@ -2,15 +2,16 @@
 
 ## What this is
 Audio-first Japanese practice for a ~30–35 min car commute, aimed at travel-level
-communication, not general fluency. `japanese-commute-coach.html` is the current
-prototype and the whole app so far — read it before changing anything.
+communication, not general fluency. `index.html` is the current prototype and the
+whole app so far — read it before changing anything.
 
 ## Two experience modes (already decided — don't relitigate)
 - **Drive mode**: fully audio, hands-free, no screen interaction while moving.
-  Prompt → speak → audio-only feedback. Doesn't exist yet — the prototype is
-  tap-driven and meant for at-home practice/testing, not for use while driving.
+  English prompt → Japanese prompt → listen → grade → advance, automatically.
+  Beginner/Amateur/Expert difficulty controls whether a phrase is drilled as
+  smaller chunks first or given whole. Implemented.
 - **Review mode**: screen-based, used after the drive. Deeper feedback, progress
-  detail. The current prototype is closer to this mode already.
+  detail. The original prototype shape, still the default view.
 
 ## Pronunciation grading — deliberate decision, not a gap
 Owner chose **local-first, revisit cloud later** over a cloud pronunciation API,

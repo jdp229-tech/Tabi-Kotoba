@@ -2,7 +2,7 @@
   "name": "Tabi Kotoba",
   "short_name": "旅ことば",
   "description": "Audio-first Japanese phrase practice for the commute",
-  "start_url": "./japanese-commute-coach.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#171B2E",
