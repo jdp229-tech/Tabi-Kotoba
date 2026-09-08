@@ -475,6 +475,19 @@ const PHRASES = [
   {id:"p60", cat:"talk", en:"Cheers!", jp:"乾杯", romaji:"kanpai", accept:["kanpai"]}
 ];
 
+// Pre-generated audio for whole-phrase Japanese playback (VOICEVOX) -- see tools/generate_audio.py.
+// One clip per difficulty tier (speed varies: beginner slowest, expert full pace), keyed by the
+// current `difficulty`. Chunk and kana audio deliberately fall through to live speechSynthesis;
+// only exact whole-phrase text matches here.
+const AUDIO_MAP = {};
+PHRASES.forEach(function(p){
+  AUDIO_MAP[p.jp] = {
+    beginner: "audio/"+p.id+"-beginner.wav",
+    amateur: "audio/"+p.id+"-amateur.wav",
+    expert: "audio/"+p.id+"-expert.wav"
+  };
+});
+
 const GOJUON = [
   ["a","あ","ア"],["i","い","イ"],["u","う","ウ"],["e","え","エ"],["o","お","オ"],
   ["ka","か","カ"],["ki","き","キ"],["ku","く","ク"],["ke","け","ケ"],["ko","こ","コ"],
@@ -627,8 +640,31 @@ function recordResult(id, outcome){
 
 /* ---------------- speech ---------------- */
 let selectedJaVoiceURI = null; // null = auto (heuristic below)
+let jaAudioEl = null;
 
 function speak(text, lang, onDone){
+  if(lang.indexOf("ja") === 0 && AUDIO_MAP[text]){
+    const tier = AUDIO_MAP[text][difficulty] || AUDIO_MAP[text].expert;
+    return speakFromFile(tier, text, lang, onDone);
+  }
+  return speakViaSynthesis(text, lang, onDone);
+}
+
+function speakFromFile(src, text, lang, onDone){
+  if(!jaAudioEl) jaAudioEl = new Audio();
+  try{
+    jaAudioEl.pause();
+    jaAudioEl.onended = null; jaAudioEl.onerror = null;
+    jaAudioEl.onended = function(){ if(onDone) onDone(); };
+    jaAudioEl.onerror = function(){ speakViaSynthesis(text, lang, onDone); };
+    jaAudioEl.src = src;
+    const playResult = jaAudioEl.play();
+    if(playResult && playResult.catch) playResult.catch(function(){ speakViaSynthesis(text, lang, onDone); });
+    return true;
+  }catch(e){ return speakViaSynthesis(text, lang, onDone); }
+}
+
+function speakViaSynthesis(text, lang, onDone){
   if(!("speechSynthesis" in window)){ if(onDone) setTimeout(onDone, 0); return false; }
   try{
     window.speechSynthesis.cancel();
@@ -750,7 +786,8 @@ function render(){
       )+
       'Speech grading currently uses your browser\u2019s built-in recognizer as a stand-in, so accuracy varies by device. '+
       'Review mode is for focused practice at a screen; Drive mode is fully audio and hands-free for the commute itself. '+
-      'The plan is to swap browser speech recognition for a proper local speech model, keeping grading fully offline either way.'+
+      'The plan is to swap browser speech recognition for a proper local speech model, keeping grading fully offline either way. '+
+      'Japanese phrase audio was generated once, offline, with VOICEVOX (character: 四国めたん / ノーマル) — no audio leaves your device to play it.'+
       renderVoicePicker()+
     '</div>'+
     '<div class="tabs">'+
