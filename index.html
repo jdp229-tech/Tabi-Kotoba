@@ -728,6 +728,24 @@ let driveTurnId = 0;
 let drivePauseTimer = null;
 let drivePieces = [];
 let drivePieceIndex = 0;
+let wakeLock = null;
+
+async function requestWakeLock(){
+  if(!("wakeLock" in navigator)) return;
+  try{
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", function(){ wakeLock = null; });
+  }catch(e){ wakeLock = null; }
+}
+function releaseWakeLock(){
+  if(wakeLock){
+    try{ wakeLock.release(); }catch(e){}
+    wakeLock = null;
+  }
+}
+document.addEventListener("visibilitychange", function(){
+  if(driveActive && document.visibilityState === "visible" && !wakeLock) requestWakeLock();
+});
 
 function ensureCurrentPhrase(){
   if(!currentPhrase){ currentPhrase = pickNext(PHRASES); }
@@ -821,6 +839,7 @@ function render(){
   const startDriveBtn = document.getElementById("startDriveBtn");
   if(startDriveBtn) startDriveBtn.onclick = function(){
     mode = "drive"; driveActive = true; driveState = "idle"; driveFeedback = null;
+    requestWakeLock();
     render();
     startDriveTurn();
   };
@@ -1131,6 +1150,7 @@ function advanceDriveManually(){
 function exitDriveMode(){
   driveActive = false;
   driveTurnId++;
+  releaseWakeLock();
   if(drivePauseTimer){ clearTimeout(drivePauseTimer); drivePauseTimer = null; }
   if("speechSynthesis" in window) window.speechSynthesis.cancel();
   if(recognition){
