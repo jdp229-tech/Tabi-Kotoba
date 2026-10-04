@@ -17,6 +17,14 @@ Run this again whenever phrases are added or changed.
    ```
    Output goes to `../audio/p1.wav` .. `p60.wav`.
 
+## stt-bench.html
+
+Throwaway benchmark for in-browser speech recognition (Whisper via
+Transformers.js). Open it at `tools/stt-bench.html` on the deployed site (the
+mic needs https), load a model, then record yourself saying a chosen phrase or
+run the clean-TTS batch. "Copy results as text" gives a table to paste back.
+Library and model files come from public CDNs, for the benchmark only.
+
 The engine itself isn't part of the app or this repo -- only the generated
 `.wav` files are committed. Safe to delete the extracted engine folder after
 generating.

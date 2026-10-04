@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STT benchmark (throwaway)</title>
+<style>
+  body{background:#171B2E;color:#EDEAE6;font:14px/1.45 -apple-system,"Segoe UI",Roboto,sans-serif;margin:0;padding:16px;max-width:760px;margin:0 auto;}
+  h1{font-size:18px;margin:0 0 6px;} h2{font-size:14px;margin:18px 0 6px;color:#D4A94C;}
+  .note{color:#8B92B8;font-size:12px;margin:0 0 10px;}
+  section{background:#1E2440;border:1px solid #333A5C;border-radius:4px;padding:12px;margin-bottom:12px;}
+  label{display:block;font-size:12px;color:#8B92B8;margin:8px 0 3px;}
+  select,button,input[type=file]{font:inherit;color:#EDEAE6;background:#171B2E;border:1px solid #333A5C;border-radius:3px;padding:8px;width:100%;box-sizing:border-box;}
+  button{background:#D4A94C;color:#171B2E;font-weight:700;border:none;margin-top:8px;cursor:pointer;}
+  button.secondary{background:transparent;color:#EDEAE6;border:1px solid #333A5C;font-weight:400;}
+  button:disabled{opacity:.4;cursor:default;}
+  .row{display:flex;gap:8px;} .row>*{flex:1;}
+  .chk{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px;} .chk input{width:auto;}
+  #status{color:#D4A94C;font-size:13px;min-height:18px;margin-top:8px;}
+  #summary{font-size:13px;margin:8px 0;}
+  .tblwrap{overflow-x:auto;} table{border-collapse:collapse;width:100%;font-size:12px;}
+  th,td{border-bottom:1px solid #333A5C;padding:5px 6px;text-align:left;vertical-align:top;white-space:nowrap;}
+  td.tx{white-space:normal;min-width:120px;}
+  .correct{color:#7fd18b;} .close{color:#D4A94C;} .retry{color:#e07a5f;}
+  #env{font-size:11px;color:#8B92B8;word-break:break-word;}
+</style>
+</head>
+<body>
+<h1>Speech-to-text benchmark</h1>
+<p class="note">Throwaway spike, not part of the app. Runs Whisper (Transformers.js) entirely in this page. The library and model files are fetched from public CDNs (jsDelivr, Hugging Face) for the benchmark only. Grading uses the app's own similarity logic, so scores mean what they'd mean in the app.</p>
+<div id="env"></div>
+
+<section>
+  <h2>1. Load an engine</h2>
+  <div class="row">
+    <div><label for="model">Model</label>
+      <select id="model">
+        <option value="Xenova/whisper-tiny">whisper-tiny (multilingual, ~64 MB)</option>
+        <option value="Xenova/whisper-base">whisper-base (multilingual, ~136 MB)</option>
+      </select></div>
+    <div><label for="device">Device</label>
+      <select id="device"><option value="auto">auto (WebGPU if present, else WASM)</option><option value="wasm">wasm</option><option value="webgpu">webgpu</option></select></div>
+  </div>
+  <label for="dtype">Precision</label>
+  <select id="dtype"><option value="small">q8 (smallest, fastest)</option><option value="accurate">fp32 encoder + q8 decoder (more accurate)</option></select>
+  <button id="load">Load model</button>
+  <div id="status"></div>
+</section>
+
+<section>
+  <h2>2. Pick a target phrase</h2>
+  <select id="phrase"></select>
+  <div class="chk"><input type="checkbox" id="ns" checked><label for="ns" style="margin:0;color:#EDEAE6">Mic noise suppression / echo cancel / auto-gain on (try both in the car)</label></div>
+  <div class="row">
+    <button id="rec" class="secondary" disabled>Record from mic</button>
+    <button id="clip" class="secondary" disabled>Run clean TTS clip</button>
+  </div>
+  <label for="file">...or any audio file</label>
+  <input type="file" id="file" accept="audio/*" disabled>
+  <button id="batch" class="secondary" disabled>Run 15 clean TTS clips (batch)</button>
+</section>
+
+<section>
+  <h2>3. Results</h2>
+  <div id="summary"></div>
+  <div class="tblwrap"><table id="tbl"><thead><tr>
+    <th>#</th><th>model</th><th>device</th><th>source</th><th>audio s</th><th>infer ms</th><th>transcript</th><th>target</th><th>score</th><th>grade</th>
+  </tr></thead><tbody></tbody></table></div>
+  <button id="copy" class="secondary">Copy results as text</button>
+</section>
+
+<script type="module">
+import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
+
+const $ = (id) => document.getElementById(id);
+
+// ---- grading primitives copied verbatim from index.html ----
+function levenshtein(a,b){
+  const m=a.length,n=b.length;
+  if(!m) return n; if(!n) return m;
+  const dp=[];
+  for(let i=0;i<=m;i++){dp.push(new Array(n+1).fill(0)); dp[i][0]=i;}
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+function similarity(a,b){
+  if(!a.length && !b.length) return 1;
+  return 1 - levenshtein(a,b)/Math.max(a.length,b.length);
+}
+function normJP(s){ return s.normalize("NFKC").replace(/[\s。、！？!?]/g,"").trim(); }
+function classify(score){
+  if(score>=0.85) return "correct";
+  if(score>=0.55) return "close";
+  return "retry";
+}
+
+let phrases = [];
+let transcriber = null;
+let loadedLabel = "";
+let loadMs = 0;
+let runCount = 0;
+const rows = [];
+const stats = [];
+
+$("env").textContent =
+  "crossOriginIsolated=" + self.crossOriginIsolated +
+  "  WebGPU=" + (!!navigator.gpu) +
+  "  cores=" + navigator.hardwareConcurrency +
+  "  " + navigator.userAgent;
+
+async function loadPhrases(){
+  const html = await (await fetch("../index.html", {cache:"no-store"})).text();
+  const start = html.indexOf("const PHRASES = [");
+  const end = html.indexOf("\n];", start);
+  const arr = html.slice(start, end);
+  const re = /\{id:"(p\d+)"[\s\S]*?en:"((?:[^"\\]|\\.)*)"[\s\S]*?jp:"([^"]+)"/g;
+  let m;
+  while((m = re.exec(arr))){ phrases.push({id:m[1], en:m[2], jp:m[3]}); }
+  $("phrase").innerHTML = phrases.map(p => `<option value="${p.id}">${p.id}: ${p.en} — ${p.jp}</option>`).join("");
+}
+
+async function decodeTo16k(arrayBuffer){
+  let ctx;
+  try{ ctx = new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000}); }
+  catch(e){ ctx = new (window.AudioContext||window.webkitAudioContext)(); }
+  const buf = await ctx.decodeAudioData(arrayBuffer.slice(0));
+  let data = buf.getChannelData(0);
+  if(buf.sampleRate !== 16000){
+    const off = new OfflineAudioContext(1, Math.ceil(buf.duration*16000), 16000);
+    const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+    data = (await off.startRendering()).getChannelData(0);
+  }
+  const out = new Float32Array(data);
+  ctx.close();
+  return out;
+}
+
+$("load").onclick = async function(){
+  $("load").disabled = true;
+  const model = $("model").value;
+  const device = $("device").value === "auto" ? (navigator.gpu ? "webgpu" : "wasm") : $("device").value;
+  const dtype = $("dtype").value === "small" ? "q8" : {encoder_model:"fp32", decoder_model_merged:"q8"};
+  $("status").textContent = "Loading " + model + " on " + device + " ...";
+  const t0 = performance.now();
+  try{
+    transcriber = await pipeline("automatic-speech-recognition", model, {
+      device, dtype,
+      progress_callback: (p) => {
+        if(p.status === "progress") $("status").textContent = "Downloading " + (p.file||"") + " " + Math.round(p.progress||0) + "%";
+      }
+    });
+    loadMs = performance.now() - t0;
+    loadedLabel = model.replace("Xenova/","") + " / " + (typeof dtype === "string" ? dtype : "fp32enc+q8dec");
+    window.__device = device;
+    $("status").textContent = "Loaded " + loadedLabel + " on " + device + " in " + Math.round(loadMs) + " ms (includes download if not cached).";
+    ["rec","clip","file","batch"].forEach(id => $(id).disabled = false);
+    runCount = 0;
+  }catch(e){
+    $("status").textContent = "Load failed: " + e.message;
+  }
+  $("load").disabled = false;
+};
+
+async function runTranscribe(audio, source, targetId){
+  const target = phrases.find(p => p.id === (targetId || $("phrase").value));
+  $("status").textContent = "Transcribing (" + source + ") ...";
+  const t0 = performance.now();
+  const out = await transcriber(audio, {language:"japanese", task:"transcribe"});
+  const ms = performance.now() - t0;
+  runCount++;
+  const text = (Array.isArray(out) ? out[0].text : out.text).trim();
+  const score = similarity(normJP(text), normJP(target.jp));
+  const grade = classify(score);
+  const row = {n:rows.length+1, model:loadedLabel, device:window.__device, source: source + (runCount===1 ? " (1st run, warm-up)" : ""), dur:(audio.length/16000).toFixed(1), ms:Math.round(ms), text, target:target.jp, score:score.toFixed(2), grade};
+  rows.push(row); stats.push({ms:row.ms, grade});
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${row.n}</td><td>${row.model}</td><td>${row.device}</td><td>${row.source}</td><td>${row.dur}</td><td>${row.ms}</td><td class="tx">${row.text}</td><td class="tx">${row.target}</td><td>${row.score}</td><td class="${grade}">${grade}</td>`;
+  $("tbl").tBodies[0].appendChild(tr);
+  updateSummary();
+  $("status").textContent = "Done: " + row.ms + " ms";
+  return row;
+}
+
+function updateSummary(){
+  if(!stats.length){ $("summary").textContent = ""; return; }
+  const ms = stats.map(s => s.ms).sort((a,b) => a-b);
+  const med = ms[Math.floor(ms.length/2)];
+  const n = stats.length;
+  const pct = g => Math.round(100 * stats.filter(s => s.grade === g).length / n);
+  $("summary").textContent = n + " runs. Median inference " + med + " ms. Correct " + pct("correct") + "%, close " + pct("close") + "%, retry " + pct("retry") + "%.";
+}
+
+async function fetchClip(id){
+  const r = await fetch("../audio/" + id + "-expert.wav");
+  return decodeTo16k(await r.arrayBuffer());
+}
+
+$("clip").onclick = async function(){
+  const id = $("phrase").value;
+  await runTranscribe(await fetchClip(id), "clean TTS clip " + id);
+};
+
+$("batch").onclick = async function(){
+  $("batch").disabled = true;
+  const sample = phrases.filter((p,i) => i % 4 === 0);
+  for(const p of sample){
+    await runTranscribe(await fetchClip(p.id), "clean TTS clip " + p.id, p.id);
+  }
+  $("batch").disabled = false;
+};
+
+$("file").onchange = async function(){
+  const f = $("file").files[0]; if(!f) return;
+  await runTranscribe(await decodeTo16k(await f.arrayBuffer()), "file " + f.name);
+};
+
+let recorder = null, stream = null, chunks = [];
+$("rec").onclick = async function(){
+  if(recorder){ recorder.stop(); return; }
+  const ns = $("ns").checked;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:ns, noiseSuppression:ns, autoGainControl:ns}});
+  }catch(e){ $("status").textContent = "Mic error: " + e.message; return; }
+  chunks = [];
+  const rec = new MediaRecorder(stream);
+  recorder = rec;
+  rec.ondataavailable = e => chunks.push(e.data);
+  rec.onstop = async () => {
+    stream.getTracks().forEach(t => t.stop());
+    recorder = null;
+    $("rec").textContent = "Record from mic";
+    const blob = new Blob(chunks, {type: rec.mimeType});
+    const audio = await decodeTo16k(await blob.arrayBuffer());
+    await runTranscribe(audio, "mic (" + (ns ? "NS on" : "NS off") + ")");
+  };
+  rec.start();
+  $("rec").textContent = "Stop & transcribe";
+};
+
+$("copy").onclick = async function(){
+  const head = ["#","model","device","source","audio_s","infer_ms","transcript","target","score","grade"].join("\t");
+  const body = rows.map(r => [r.n,r.model,r.device,r.source,r.dur,r.ms,r.text,r.target,r.score,r.grade].join("\t")).join("\n");
+  const text = $("env").textContent + "\nload_ms=" + Math.round(loadMs) + "\n" + $("summary").textContent + "\n" + head + "\n" + body;
+  try{ await navigator.clipboard.writeText(text); $("status").textContent = "Copied."; }
+  catch(e){ $("status").textContent = "Copy failed; select the table manually."; }
+};
+
+loadPhrases();
+</script>
+</body>
+</html>
