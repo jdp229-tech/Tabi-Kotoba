@@ -562,6 +562,13 @@ function gradeTyped(phrase, input){
   phrase.accept.forEach(function(a){ best=Math.max(best, similarity(n, normRomaji(a))); });
   return classify(best);
 }
+function gradeSpokenBest(phrase, results){
+  let best = 0;
+  for(let i=0;i<results.length;i++){
+    best = Math.max(best, similarity(normJP(results[i].transcript), normJP(phrase.jp)));
+  }
+  return classify(best);
+}
 function gradeSpoken(phrase, transcript){
   const score = similarity(normJP(transcript), normJP(phrase.jp));
   return classify(score);
@@ -686,6 +693,22 @@ function speakViaSynthesis(text, lang, onDone){
     return true;
   }catch(e){ if(onDone) setTimeout(onDone, 0); return false; }
 }
+let cueCtx = null;
+function playCue(onDone){
+  try{
+    if(!cueCtx) cueCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(cueCtx.state === "suspended") cueCtx.resume();
+    const osc = cueCtx.createOscillator();
+    const gain = cueCtx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.15, cueCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, cueCtx.currentTime + 0.15);
+    osc.connect(gain); gain.connect(cueCtx.destination);
+    osc.start(); osc.stop(cueCtx.currentTime + 0.15);
+    setTimeout(onDone, 250);
+  }catch(e){ onDone(); }
+}
+
 if("speechSynthesis" in window){
   window.speechSynthesis.getVoices();
   window.speechSynthesis.onvoiceschanged = function(){ if(state) render(); };
@@ -698,7 +721,7 @@ if(SRClass){
     recognition = new SRClass();
     recognition.lang = "ja-JP";
     recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+    recognition.maxAlternatives = 3;
   }catch(e){ recognition = null; }
 }
 
@@ -728,6 +751,8 @@ let driveTurnId = 0;
 let drivePauseTimer = null;
 let drivePieces = [];
 let drivePieceIndex = 0;
+let driveRetryCount = 0;
+const MAX_DRIVE_RETRIES = 1; // total listen attempts per piece = this + 1
 let wakeLock = null;
 
 async function requestWakeLock(){
@@ -1033,10 +1058,29 @@ function startDriveTurn(){
 function playDrivePiece(myTurn){
   if(!driveActive || myTurn !== driveTurnId) return;
   const piece = drivePieces[drivePieceIndex];
+  driveRetryCount = 0;
   driveState = "prompt-jp"; render();
   speak(piece.jp, "ja-JP", function(){
     if(!driveActive || myTurn !== driveTurnId) return;
     startDriveListening(piece, myTurn);
+  });
+}
+
+function handleDriveMiss(piece, myTurn){
+  if(driveRetryCount < MAX_DRIVE_RETRIES){
+    driveRetryCount++;
+    speak("One more time.", "en-US", function(){
+      if(!driveActive || myTurn !== driveTurnId) return;
+      speak(piece.jp, "ja-JP", function(){
+        if(!driveActive || myTurn !== driveTurnId) return;
+        startDriveListening(piece, myTurn);
+      });
+    });
+    return;
+  }
+  speak("Didn’t catch that.", "en-US", function(){
+    if(!driveActive || myTurn !== driveTurnId) return;
+    advancePastListening(myTurn);
   });
 }
 
@@ -1051,8 +1095,7 @@ function startDriveListening(piece, myTurn){
   recognition.onresult = function(e){
     if(resolved || !driveActive || myTurn !== driveTurnId) return;
     resolved = true; clearHandlers();
-    const transcript = e.results[0][0].transcript;
-    applyDrivePieceOutcome(gradeSpoken(piece, transcript), myTurn);
+    applyDrivePieceOutcome(gradeSpokenBest(piece, e.results[0]), myTurn);
   };
   recognition.onerror = function(e){
     if(resolved || !driveActive || myTurn !== driveTurnId) return;
@@ -1061,25 +1104,22 @@ function startDriveListening(piece, myTurn){
       speak("Microphone isn’t available. Ending drive mode.", "en-US", function(){ exitDriveMode(); });
       return;
     }
-    speak("Didn’t catch that.", "en-US", function(){
-      if(!driveActive || myTurn !== driveTurnId) return;
-      advancePastListening(myTurn);
-    });
+    handleDriveMiss(piece, myTurn);
   };
   recognition.onend = function(){
     if(resolved || !driveActive || myTurn !== driveTurnId) return;
     resolved = true; clearHandlers();
-    speak("Didn’t catch that.", "en-US", function(){
-      if(!driveActive || myTurn !== driveTurnId) return;
-      advancePastListening(myTurn);
-    });
+    handleDriveMiss(piece, myTurn);
   };
-  try{
-    recognition.start();
-  }catch(e){
-    resolved = true; clearHandlers();
-    advancePastListening(myTurn);
-  }
+  playCue(function(){
+    if(!driveActive || myTurn !== driveTurnId) return;
+    try{
+      recognition.start();
+    }catch(e){
+      resolved = true; clearHandlers();
+      advancePastListening(myTurn);
+    }
+  });
 }
 
 function advancePastListening(myTurn){
