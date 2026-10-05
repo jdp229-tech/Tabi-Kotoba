@@ -16,7 +16,8 @@
   button:disabled{opacity:.4;cursor:default;}
   .row{display:flex;gap:8px;} .row>*{flex:1;}
   .chk{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px;} .chk input{width:auto;}
-  #status{color:#D4A94C;font-size:13px;min-height:18px;margin-top:8px;}
+  #status{position:sticky;top:0;z-index:5;background:#0f1220;border:1px solid #D4A94C;color:#D4A94C;font-size:14px;font-weight:700;min-height:20px;padding:8px;margin:8px 0;border-radius:3px;}
+  #log{background:#0f1220;color:#8B92B8;font-size:11px;padding:8px;border-radius:3px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow:auto;margin:0 0 8px;}
   #summary{font-size:13px;margin:8px 0;}
   .tblwrap{overflow-x:auto;} table{border-collapse:collapse;width:100%;font-size:12px;}
   th,td{border-bottom:1px solid #333A5C;padding:5px 6px;text-align:left;vertical-align:top;white-space:nowrap;}
@@ -29,6 +30,7 @@
 <h1>Speech-to-text benchmark</h1>
 <p class="note">Throwaway spike, not part of the app. Runs Whisper (Transformers.js) entirely in this page. The library and model files are fetched from public CDNs (jsDelivr, Hugging Face) for the benchmark only. Grading uses the app's own similarity logic, so scores mean what they'd mean in the app.</p>
 <div id="env"></div>
+<div id="status">Ready. Step 1: load a model.</div>
 
 <section>
   <h2>1. Load an engine</h2>
@@ -44,7 +46,6 @@
   <label for="dtype">Precision</label>
   <select id="dtype"><option value="small">q8 (smallest, fastest)</option><option value="accurate">fp32 encoder + q8 decoder (more accurate)</option></select>
   <button id="load">Load model</button>
-  <div id="status"></div>
 </section>
 
 <section>
@@ -69,6 +70,7 @@
 
 <section>
   <h2>3. Results</h2>
+  <pre id="log">Step log appears here.</pre>
   <div id="summary"></div>
   <div class="tblwrap"><table id="tbl"><thead><tr>
     <th>#</th><th>model</th><th>device</th><th>source</th><th>audio s</th><th>infer ms</th><th>transcript</th><th>target</th><th>score</th><th>grade</th>
@@ -80,6 +82,20 @@
 import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3";
 
 const $ = (id) => document.getElementById(id);
+const T0 = performance.now();
+function log(s){
+  const t = ((performance.now() - T0) / 1000).toFixed(1);
+  const el = $("log");
+  el.textContent = (el.textContent === "Step log appears here." ? "" : el.textContent) + t + "s  " + s + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+function fail(where, e){
+  const msg = where + " failed: " + ((e && e.message) || e);
+  $("status").textContent = "ERROR — " + msg;
+  log("ERROR " + msg);
+}
+window.addEventListener("error", e => fail("page error", e.error || e.message));
+window.addEventListener("unhandledrejection", e => fail("unhandled", e.reason));
 
 // ---- grading primitives copied verbatim from index.html ----
 function levenshtein(a,b){
@@ -142,6 +158,8 @@ function showPhrase(){
 const playerEl = new Audio();
 function playPhrase(){
   return new Promise(resolve => {
+    log("playing phrase " + $("phrase").value);
+    $("status").textContent = "Playing the phrase... listen, then repeat it when recording starts.";
     playerEl.onended = resolve;
     playerEl.onerror = () => { $("status").textContent = "Couldn't play the clip."; resolve(); };
     playerEl.src = "../audio/" + $("phrase").value + "-" + $("spd").value + ".wav";
@@ -183,7 +201,8 @@ $("load").onclick = async function(){
     loadMs = performance.now() - t0;
     loadedLabel = model.replace("Xenova/","") + " / " + (typeof dtype === "string" ? dtype : "fp32enc+q8dec");
     window.__device = device;
-    $("status").textContent = "Loaded " + loadedLabel + " on " + device + " in " + Math.round(loadMs) + " ms (includes download if not cached).";
+    $("status").textContent = "Loaded " + loadedLabel + " on " + device + " in " + Math.round(loadMs) + " ms. Now try step 2.";
+    log("model loaded: " + loadedLabel + " on " + device + " in " + Math.round(loadMs) + " ms");
     ["rec","playrec","clip","file","batch"].forEach(id => $(id).disabled = false);
     runCount = 0;
   }catch(e){
@@ -194,10 +213,20 @@ $("load").onclick = async function(){
 
 async function runTranscribe(audio, source, targetId){
   const target = phrases.find(p => p.id === (targetId || $("phrase").value));
-  $("status").textContent = "Transcribing (" + source + ") ...";
+  log("transcribing " + (audio.length/16000).toFixed(1) + " s of audio (" + source + ")");
   const t0 = performance.now();
-  const out = await transcriber(audio, {language:"japanese", task:"transcribe"});
+  const tick = setInterval(() => {
+    $("status").textContent = "Transcribing... " + Math.round((performance.now()-t0)/1000) + " s (can take a while on a phone)";
+  }, 500);
+  let out;
+  try{
+    out = await transcriber(audio, {language:"japanese", task:"transcribe"});
+  }catch(e){
+    clearInterval(tick); fail("transcription", e); return;
+  }
+  clearInterval(tick);
   const ms = performance.now() - t0;
+  log("transcribed in " + Math.round(ms) + " ms");
   runCount++;
   const text = (Array.isArray(out) ? out[0].text : out.text).trim();
   const score = similarity(normJP(text), normJP(target.jp));
@@ -257,29 +286,44 @@ $("playrec").onclick = async function(){
 };
 async function startRecording(){
   const ns = $("ns").checked;
+  log("requesting microphone");
   try{
     stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:ns, noiseSuppression:ns, autoGainControl:ns}});
-  }catch(e){ $("status").textContent = "Mic error: " + e.message; return; }
+  }catch(e){ fail("microphone", e); return; }
   chunks = [];
-  const rec = new MediaRecorder(stream);
+  let rec;
+  try{ rec = new MediaRecorder(stream); }
+  catch(e){ fail("MediaRecorder", e); stream.getTracks().forEach(t => t.stop()); return; }
   recorder = rec;
   rec.ondataavailable = e => chunks.push(e.data);
+  rec.onerror = e => fail("recorder", e.error || e);
   rec.onstop = async () => {
+    clearInterval(recTick);
     stream.getTracks().forEach(t => t.stop());
     recorder = null;
     $("rec").textContent = "Record from mic";
-    const blob = new Blob(chunks, {type: rec.mimeType});
-    const audio = await decodeTo16k(await blob.arrayBuffer());
-    await runTranscribe(audio, "mic (" + (ns ? "NS on" : "NS off") + ")");
+    try{
+      const blob = new Blob(chunks, {type: rec.mimeType});
+      log("recorded " + Math.round(blob.size/1024) + " KB (" + (rec.mimeType || "unknown type") + ")");
+      if(blob.size < 500){ fail("recording", "almost no audio captured"); return; }
+      const audio = await decodeTo16k(await blob.arrayBuffer());
+      log("decoded " + (audio.length/16000).toFixed(1) + " s");
+      await runTranscribe(audio, "mic (" + (ns ? "NS on" : "NS off") + ")");
+    }catch(e){ fail("processing recording", e); }
   };
   rec.start();
+  log("recording started");
+  const rt0 = performance.now();
+  const recTick = setInterval(() => {
+    $("status").textContent = "RECORDING — speak now (" + Math.round((performance.now()-rt0)/1000) + " s)";
+  }, 250);
   $("rec").textContent = "Stop & transcribe";
 }
 
 $("copy").onclick = async function(){
   const head = ["#","model","device","source","audio_s","infer_ms","transcript","target","score","grade"].join("\t");
   const body = rows.map(r => [r.n,r.model,r.device,r.source,r.dur,r.ms,r.text,r.target,r.score,r.grade].join("\t")).join("\n");
-  const text = $("env").textContent + "\nload_ms=" + Math.round(loadMs) + "\n" + $("summary").textContent + "\n" + head + "\n" + body;
+  const text = $("env").textContent + "\nload_ms=" + Math.round(loadMs) + "\n" + $("summary").textContent + "\n" + head + "\n" + body + "\n--- step log ---\n" + $("log").textContent;
   try{ await navigator.clipboard.writeText(text); $("status").textContent = "Copied."; }
   catch(e){ $("status").textContent = "Copy failed; select the table manually."; }
 };
